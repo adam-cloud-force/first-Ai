@@ -1,0 +1,28 @@
+# AI Assistant Dependencies
+# These are the libraries we need to build our AI
+
+# Core AI and Natural Language Processing
+openai==1.51.0          # For accessing GPT models (optional - we'll show alternatives)
+transformers==4.36.0    # Hugging Face transformers for local AI models
+torch==2.1.0           # PyTorch for running AI models locally
+
+# Web scraping and APIs
+requests==2.31.0        # For making API calls (weather, web search, etc.)
+beautifulsoup4==4.12.2  # For parsing web content
+wikipedia==1.4.0        # For Wikipedia searches
+
+# Voice capabilities (optional but fun!)
+pyttsx3==2.90           # Text-to-speech
+SpeechRecognition==3.10.0  # Speech-to-text
+
+# Utilities
+python-dateutil==2.8.2  # For handling dates and times
+colorama==0.4.6         # For colored terminal output
+rich==13.7.0            # For beautiful terminal formatting
+
+# Data handling
+pandas==2.1.4           # For handling data (useful for more advanced features)
+numpy==1.24.3           # Mathematical operations
+
+# Web interface (we'll build a simple web UI too)
+flask==3.0.0            # Simple web framework
