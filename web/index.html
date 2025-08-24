@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>AI Assistant</title>
+	<style>
+		body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 20px; }
+		nav button { margin-right: 8px; }
+		section { display: none; margin-top: 16px; }
+		section.active { display: block; }
+		pre { background: #111; color: #0f0; padding: 8px; white-space: pre-wrap; }
+		input, textarea, select, button { padding: 8px; margin: 4px 0; }
+		.card { border: 1px solid #ddd; padding: 12px; border-radius: 8px; margin-bottom: 8px; }
+	</style>
+</head>
+<body>
+	<h1>AI Assistant</h1>
+	<nav>
+		<button data-tab="chat">Chat</button>
+		<button data-tab="todos">Todos</button>
+		<button data-tab="reminders">Reminders</button>
+		<button data-tab="calc">Calc</button>
+		<button data-tab="convert">Convert</button>
+	</nav>
+
+	<section id="chat" class="active">
+		<h2>Chat</h2>
+		<textarea id="chat-prompt" rows="4" cols="60" placeholder="Ask me anything..."></textarea><br>
+		<button id="chat-send">Send</button>
+		<pre id="chat-output"></pre>
+	</section>
+
+	<section id="todos">
+		<h2>Todos</h2>
+		<input id="todo-title" placeholder="New todo" />
+		<button id="todo-add">Add</button>
+		<div id="todo-list"></div>
+	</section>
+
+	<section id="reminders">
+		<h2>Reminders</h2>
+		<input id="reminder-message" placeholder="Message" />
+		<input id="reminder-due" placeholder="YYYY-MM-DD HH:MM" />
+		<button id="reminder-add">Add</button>
+		<div id="reminder-list"></div>
+	</section>
+
+	<section id="calc">
+		<h2>Calculator</h2>
+		<input id="calc-expression" placeholder="(2+3)*4" />
+		<button id="calc-eval">Eval</button>
+		<pre id="calc-output"></pre>
+	</section>
+
+	<section id="convert">
+		<h2>Convert</h2>
+		<input id="conv-value" type="number" step="any" placeholder="Value" />
+		<select id="conv-from">
+			<option>m</option><option>km</option><option>mi</option>
+			<option>g</option><option>kg</option><option>lb</option>
+		</select>
+		<select id="conv-to">
+			<option>m</option><option>km</option><option>mi</option>
+			<option>g</option><option>kg</option><option>lb</option>
+		</select>
+		<button id="conv-do">Convert</button>
+		<pre id="conv-output"></pre>
+	</section>
+
+	<script>
+		const $ = (sel) => document.querySelector(sel);
+		const $$ = (sel) => Array.from(document.querySelectorAll(sel));
+
+		// Tabs
+		$$('nav button').forEach(btn => btn.addEventListener('click', () => {
+			$$('section').forEach(s => s.classList.remove('active'));
+			$('#' + btn.dataset.tab).classList.add('active');
+		}));
+
+		// Chat
+		$('#chat-send').addEventListener('click', async () => {
+			const prompt = $('#chat-prompt').value.trim();
+			if (!prompt) return;
+			$('#chat-output').textContent = 'Thinking...';
+			const res = await fetch('/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+			const data = await res.json();
+			$('#chat-output').textContent = data.response || '(no response)';
+		});
+
+		// Todos
+		async function refreshTodos() {
+			const res = await fetch('/todos');
+			const todos = await res.json();
+			const list = $('#todo-list');
+			list.innerHTML = '';
+			todos.forEach(t => {
+				const card = document.createElement('div'); card.className = 'card';
+				card.innerHTML = `<label><input type="checkbox" ${t.completed ? 'checked' : ''}/> ${t.title}</label> <button>Delete</button>`;
+				card.querySelector('input').addEventListener('change', async (e) => {
+					await fetch(`/todos/${t.id}?completed=${e.target.checked}`, { method: 'PATCH' });
+					refreshTodos();
+				});
+				card.querySelector('button').addEventListener('click', async () => {
+					await fetch(`/todos/${t.id}`, { method: 'DELETE' });
+					refreshTodos();
+				});
+				list.appendChild(card);
+			});
+		}
+		$('#todo-add').addEventListener('click', async () => {
+			const title = $('#todo-title').value.trim(); if (!title) return;
+			await fetch('/todos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) });
+			$('#todo-title').value = '';
+			refreshTodos();
+		});
+		refreshTodos();
+
+		// Reminders
+		async function refreshReminders() {
+			const res = await fetch('/reminders');
+			const reminders = await res.json();
+			const list = $('#reminder-list'); list.innerHTML = '';
+			reminders.forEach(r => {
+				const card = document.createElement('div'); card.className = 'card';
+				card.innerHTML = `<div>${r.message}</div><div>Due: ${r.due_at_iso}</div> <button>Delete</button>`;
+				card.querySelector('button').addEventListener('click', async () => {
+					await fetch(`/reminders/${r.id}`, { method: 'DELETE' });
+					refreshReminders();
+				});
+				list.appendChild(card);
+			});
+		}
+		$('#reminder-add').addEventListener('click', async () => {
+			const message = $('#reminder-message').value.trim();
+			const due_at_iso = $('#reminder-due').value.trim();
+			if (!message || !due_at_iso) return;
+			await fetch('/reminders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, due_at_iso }) });
+			$('#reminder-message').value = '';
+			$('#reminder-due').value = '';
+			refreshReminders();
+		});
+		refreshReminders();
+
+		// Calc
+		$('#calc-eval').addEventListener('click', async () => {
+			const expression = $('#calc-expression').value.trim(); if (!expression) return;
+			const res = await fetch('/calc', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expression }) });
+			const data = await res.json();
+			$('#calc-output').textContent = String(data.result);
+		});
+
+		// Convert
+		$('#conv-do').addEventListener('click', async () => {
+			const value = parseFloat($('#conv-value').value);
+			const from_unit = $('#conv-from').value;
+			const to_unit = $('#conv-to').value;
+			if (isNaN(value)) return;
+			const res = await fetch('/convert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value, from_unit, to_unit }) });
+			const data = await res.json();
+			$('#conv-output').textContent = `${data.value} ${data.from_unit} = ${data.converted} ${data.to_unit}`;
+		});
+	</script>
+</body>
+</html>
